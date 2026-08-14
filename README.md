@@ -29,23 +29,23 @@ python3 cc_cost.py
 No dependencies — standard library only, Python 3.9+.
 
 ```
-Claude Code usage — 14 transcript file(s), 1605 assistant turns
+Claude Code usage — 14 transcript file(s), 1240 assistant turns
 
-  Estimated cost:  $371.01   (public list rates, not a bill)
-  Uncached input:       4.6K
-  Cache reads:        439.1M  (billed at 0.1x input)
-  Cache writes:        12.2M
-  Output:               1.2M  (incl. 473.6K thinking)
+  Estimated cost:  $284.50   (public list rates, not a bill)
+  Uncached input:       3.5K
+  Cache reads:        336.0M  (billed at 0.1x input)
+  Cache writes:         9.4M
+  Output:             890.0K  (incl. 360.0K thinking)
   Cache hit rate:      97.3%  (reads / all prompt tokens)
 
 By model
                                               cost   share   turns       in      out   cached
-  claude-opus-5                            371.01$  100.0%    1605     4.6K     1.2M   439.1M
+  claude-opus-5                            284.50$  100.0%    1240     3.5K   890.0K   336.0M
 
 By project
                                               cost   share   turns       in      out   cached
-  ~/some-service                           262.47$   70.9%     806     3.1K   602.8K   338.2M
-  ~/another-repo                            31.54$    8.5%     173      320   145.6K    27.3M
+  ~/some-service                           201.70$   70.9%     620     2.4K   460.0K   259.0M
+  ~/another-repo                             24.20$    8.5%     133      250   112.0K    21.0M
 ```
 
 ### Useful invocations
@@ -76,11 +76,11 @@ The message:
 
 ```
 *Claude Code — Fri Aug 14*
-• Last 24h: *$182.20*  (720 turns, 554.9K out / 215.2M cached)
-• August month-to-date: *$377.84*  (1629 turns)
+• Last 24h: *$140.00*  (550 turns, 425.0K out / 165.0M cached)
+• August month-to-date: *$284.50*  (1240 turns)
 • Top projects:
-    ‣ `~/some-service` — $121.35
-    ‣ `~/another-repo` — $15.28
+    ‣ `~/some-service` — $93.10
+    ‣ `~/another-repo` — $11.70
 _Estimate at public list rates — not a billing statement._
 ```
 
