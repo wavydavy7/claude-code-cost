@@ -139,6 +139,17 @@ chmod 600 ~/.claude/cc-cost/slack.json
 python3 cc_cost_daily.py --verify
 ```
 
+#### Sharing one channel across a team
+
+If several people point at the **same webhook**, each message is prefixed with the sender
+so they're distinguishable — `$USER` by default, or set `label` explicitly:
+
+```json
+{"webhook_url": "https://hooks.slack.com/services/...", "label": "Davy (laptop)"}
+```
+
+Bot-token DMs skip the prefix, since you already know a DM is yours.
+
 Credentials can also come from the environment (`SLACK_WEBHOOK_URL`, or
 `SLACK_BOT_TOKEN` + `SLACK_CHANNEL`) if you'd rather not write a file — but note that
 `launchd` and `cron` run with a minimal environment, so the file is more reliable for the
@@ -218,3 +229,6 @@ record, not a source of truth. Deleting it loses history, not accuracy.
 | `CC_COST_HOME` | `~/.claude/cc-cost` | Config, state, and log location |
 | `CC_COST_PROJECTS` | `~/.claude/projects` | Transcript root |
 | `CC_COST_WINDOW_HOURS` | `24` | Daily report window |
+
+`slack.json` keys: `bot_token` + `channel`, or `webhook_url`; optional `label` to name the
+sender in a shared channel.

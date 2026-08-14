@@ -127,7 +127,21 @@ def money(x: float) -> str:
     return f"${x:,.2f}"
 
 
-def build(now: datetime) -> tuple[str, dict]:
+def who(conf: dict) -> str:
+    """Identify the sender when several people post into one shared channel.
+
+    A bot DM needs no attribution — you know it's you. A webhook posts to a shared
+    channel, so without this every teammate's report looks identical.
+    """
+    if conf.get("label"):
+        return f"{conf['label']} · "
+    if conf.get("webhook_url"):
+        return f"{os.environ.get('USER') or os.environ.get('LOGNAME') or 'unknown'} · "
+    return ""
+
+
+def build(now: datetime, conf: dict | None = None) -> tuple[str, dict]:
+    conf = conf or {}
     day_start = now - timedelta(hours=WINDOW_HOURS)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -136,7 +150,7 @@ def build(now: datetime) -> tuple[str, dict]:
 
     top = sorted(day_by["project"].items(), key=lambda kv: kv[1].cost, reverse=True)[:3]
     lines = [
-        f"*Claude Code — {now:%a %b %-d}*",
+        f"*Claude Code — {who(conf)}{now:%a %b %-d}*",
         f"• Last {WINDOW_HOURS:g}h: *{money(day.cost)}*  ({day.turns} turns, "
         f"{cc.fmt(day.out)} out / {cc.fmt(day.cache_read)} cached)",
         f"• {now:%B} month-to-date: *{money(month.cost)}*  ({month.turns} turns)",
@@ -259,7 +273,8 @@ def main() -> int:
         return 1
 
     now = datetime.now().astimezone()
-    text, record = build(now)
+    conf = slack_config()
+    text, record = build(now, conf)
 
     if a.dry_run:
         print(text)
@@ -271,7 +286,7 @@ def main() -> int:
     if warn:
         print(f"warning: {warn}", file=sys.stderr)
 
-    send(text, slack_config())
+    send(text, conf)
     if not a.no_save:
         save(record)
     print(f"[{now:%Y-%m-%d %H:%M}] sent — {WINDOW_HOURS:g}h {money(record['window_usd'])}, "
