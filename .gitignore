@@ -1,0 +1,17 @@
+# Secrets and machine-local state. These should live in $CC_COST_HOME
+# (default ~/.claude/cc-cost/), never in the checkout — but belt and braces.
+slack.json
+*state.json
+*.log
+cc-cost-*.json
+
+# Generated
+*.plist
+__pycache__/
+*.pyc
+.venv/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
