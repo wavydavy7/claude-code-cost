@@ -61,6 +61,17 @@ def slack_config() -> dict:
     return {}
 
 
+def check_perms() -> str | None:
+    """Warn if the credentials file is readable by anyone but the owner."""
+    if not SLACK_CONF.is_file():
+        return None
+    mode = SLACK_CONF.stat().st_mode & 0o077
+    if mode:
+        return (f"{SLACK_CONF} is group/world-readable (mode "
+                f"{SLACK_CONF.stat().st_mode & 0o777:o}). Run: chmod 600 {SLACK_CONF}")
+    return None
+
+
 def post(url: str, payload: dict, headers: dict) -> tuple[int, str]:
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(),
@@ -178,11 +189,70 @@ def save(record: dict) -> None:
     tmp.replace(STATE)  # atomic — a killed run never leaves truncated state
 
 
+def verify() -> int:
+    """Check credentials end to end and send one test message. Run this after setup."""
+    conf = slack_config()
+    if not conf:
+        print(f"✗ No credentials found.\n"
+              f"  Create {SLACK_CONF} — see the README's 'Slack credentials' section.")
+        return 1
+
+    source = "config file" if SLACK_CONF.is_file() else "environment"
+    warn = check_perms()
+    if warn:
+        print(f"⚠ {warn}")
+
+    if conf.get("bot_token"):
+        print(f"→ Found bot_token in {source}; checking with auth.test …")
+        status, body = post("https://slack.com/api/auth.test", {},
+                            {"Authorization": f"Bearer {conf['bot_token']}"})
+        try:
+            r = json.loads(body)
+        except json.JSONDecodeError:
+            print(f"✗ Unreadable response from Slack: {body[:200]}")
+            return 1
+        if not r.get("ok"):
+            hint = {
+                "invalid_auth": "the token is wrong, revoked, or not a bot token",
+                "account_inactive": "the app was uninstalled from the workspace",
+                "token_revoked": "the token was revoked — reinstall the app",
+            }.get(r.get("error", ""), "see https://api.slack.com/methods/auth.test")
+            print(f"✗ Token rejected: {r.get('error')} — {hint}")
+            return 1
+        print(f"✓ Token valid — workspace '{r.get('team')}', bot '{r.get('user')}'")
+        if not conf.get("channel"):
+            print("✗ 'channel' is missing. Use your own member ID (Slack profile → "
+                  "⋮ → Copy member ID) to have it DM you.")
+            return 1
+        print(f"→ Sending a test message to {conf['channel']} …")
+    else:
+        print(f"→ Found webhook_url in {source}; sending a test message …")
+
+    try:
+        send(f":white_check_mark: `claude-code-cost` is wired up — "
+             f"this is a test message from {os.uname().nodename}.", conf)
+    except SystemExit as e:
+        print(f"✗ {e}")
+        if conf.get("bot_token"):
+            print("  If this says 'channel_not_found', the value in 'channel' isn't a "
+                  "member/channel ID.\n"
+                  "  If it says 'not_in_channel', invite the bot to that channel first.")
+        return 1
+
+    print("✓ Test message sent. You're set — the scheduled run will work.")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Post daily Claude Code cost to Slack.")
     p.add_argument("--dry-run", action="store_true", help="print the message, send nothing")
+    p.add_argument("--verify", action="store_true",
+                   help="check credentials and send one test message")
     p.add_argument("--no-save", action="store_true", help="skip writing the state file")
     a = p.parse_args()
+
+    if a.verify:
+        return verify()
 
     if not ROOT.is_dir():
         print(f"No transcripts at {ROOT}", file=sys.stderr)
@@ -196,6 +266,10 @@ def main() -> int:
         print("\n--- state record ---")
         print(json.dumps(record, indent=2))
         return 0
+
+    warn = check_perms()
+    if warn:
+        print(f"warning: {warn}", file=sys.stderr)
 
     send(text, slack_config())
     if not a.no_save:

@@ -60,6 +60,10 @@ python3 cc_cost.py --sidechains                  # include subagent turns
 python3 cc_cost.py --json | jq .                 # machine-readable
 ```
 
+Every user reads only their own `~/.claude/projects`; there is no shared state, no server,
+and no account to sign into for the cost report itself. The only credential anywhere in
+this tool is your personal Slack token, used solely to deliver the message.
+
 ## Daily Slack report
 
 ```bash
@@ -86,21 +90,62 @@ _Estimate at public list rates — not a billing statement._
 
 ### Slack credentials
 
-Create `~/.claude/cc-cost/slack.json` with **one** of:
+Each user supplies their own — there is no shared account and nothing is baked into the
+repo. Pick one of the two options below, then verify:
 
-```json
-{"bot_token": "xoxb-...", "channel": "U0123ABC"}
+```bash
+python3 cc_cost_daily.py --verify
 ```
-Set `channel` to your own Slack user ID and it DMs you. Needs a Slack app with the
-`chat:write` scope.
 
-```json
-{"webhook_url": "https://hooks.slack.com/services/..."}
+That validates the token against Slack, warns if the file is group/world-readable, and
+sends one test message, so you find out now rather than at 17:00.
+
+> **Heads up:** many workspaces require admin approval to install a Slack app. If your
+> org restricts this, the webhook option is usually easier to get approved than a bot
+> token — or ask an admin to install it once and share the webhook.
+
+#### Option A — bot token (DMs you)
+
+1. <https://api.slack.com/apps> → **Create New App** → **From scratch**, pick your workspace.
+2. **OAuth & Permissions** → **Bot Token Scopes** → add `chat:write`.
+   (If DMs later fail with an error about opening a conversation, add `im:write` too.)
+3. **Install to Workspace** → **Allow**.
+4. Copy the **Bot User OAuth Token** — it starts `xoxb-`.
+5. Get your own member ID: in Slack, click your avatar → **Profile** → **⋮** →
+   **Copy member ID**. It looks like `U0123ABC456`.
+
+```bash
+mkdir -p ~/.claude/cc-cost
+cat > ~/.claude/cc-cost/slack.json <<'JSON'
+{"bot_token": "xoxb-YOUR-TOKEN", "channel": "U0YOUR-MEMBER-ID"}
+JSON
+chmod 600 ~/.claude/cc-cost/slack.json
+python3 cc_cost_daily.py --verify
 ```
-Easier to create, but an incoming webhook posts to a **fixed channel** — it cannot DM you.
 
-Then `chmod 600` it. Until this file exists the job runs and exits with a message naming
-exactly what to create; it does not fail silently.
+#### Option B — incoming webhook (fixed channel)
+
+Fewer steps, but a webhook posts to **one preset channel** and cannot DM you.
+
+1. Same app → **Incoming Webhooks** → toggle **On**.
+2. **Add New Webhook to Workspace** → choose the channel → **Allow**.
+3. Copy the URL.
+
+```bash
+mkdir -p ~/.claude/cc-cost
+echo '{"webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"}' \
+  > ~/.claude/cc-cost/slack.json
+chmod 600 ~/.claude/cc-cost/slack.json
+python3 cc_cost_daily.py --verify
+```
+
+Credentials can also come from the environment (`SLACK_WEBHOOK_URL`, or
+`SLACK_BOT_TOKEN` + `SLACK_CHANNEL`) if you'd rather not write a file — but note that
+`launchd` and `cron` run with a minimal environment, so the file is more reliable for the
+scheduled job.
+
+Until credentials exist the job runs and exits with a message naming exactly what to
+create; it does not fail silently. Errors land in `$CC_COST_HOME/daily.log`.
 
 **Credentials and state deliberately live outside this checkout** (in `$CC_COST_HOME`,
 default `~/.claude/cc-cost/`) so a Slack token can't end up in git. `.gitignore` covers

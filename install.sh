@@ -116,6 +116,9 @@ an error until you create $CONF_HOME/slack.json with ONE of:
   {"webhook_url": "https://hooks.slack.com/services/..."}   # fixed channel
 
 Then: chmod 600 $CONF_HOME/slack.json
-Test: $PY $REPO/cc_cost_daily.py
+Verify: $PY $REPO/cc_cost_daily.py --verify
+
+Full setup steps (creating the Slack app, finding your member ID) are in the
+README under "Slack credentials".
 SETUP
 fi
