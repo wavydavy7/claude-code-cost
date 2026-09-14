@@ -176,9 +176,9 @@ turn. Prices are the public list rates in the `PRICES` dict at the top of `cc_co
 
 Three details that a naive implementation gets wrong:
 
-**Cache tiers are priced separately.** Cache reads bill at 0.1× the base input rate,
-5-minute cache writes at 1.25×, and 1-hour cache writes at **2×**. Transcripts split
-these out per turn:
+**Cache tiers are priced separately.** Cache reads bill at 0.1× the base input rate
+(**0.025×** on Claude Fable 5.1, whose cache reads are $0.25/MTok), 5-minute cache writes
+at 1.25×, and 1-hour cache writes at **2×**. Transcripts split these out per turn:
 
 ```json
 "cache_creation": {"ephemeral_1h_input_tokens": 8639, "ephemeral_5m_input_tokens": 0}
@@ -215,7 +215,7 @@ record, not a source of truth. Deleting it loses history, not accuracy.
   cost at list price." It is useful for *relative* comparison — which project, which day,
   which session — regardless.
 - **The price table goes stale.** It's one dict at the top of `cc_cost.py`; update it as
-  models ship. PRs welcome.
+  models ship, and run `python3 test_cc_cost.py` afterwards. PRs welcome.
 - **Local-only.** Work done on another machine, in the web app, or in an IDE extension
   elsewhere won't appear.
 - **Subagent turns are excluded by default** (`isSidechain`). Workflow- and agent-heavy

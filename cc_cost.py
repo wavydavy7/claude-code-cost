@@ -33,6 +33,8 @@ from pathlib import Path
 # USD per million tokens (input, output) at public list rates.
 # Update when models ship; unknown models are reported separately, never guessed.
 PRICES: dict[str, tuple[float, float]] = {
+    "claude-fable-5-1": (10.00, 50.00),
+    "claude-mythos-5-1": (10.00, 50.00),
     "claude-fable-5": (10.00, 50.00),
     "claude-mythos-5": (10.00, 50.00),
     "claude-opus-5": (5.00, 25.00),
@@ -44,6 +46,7 @@ PRICES: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-sonnet-4-5": (3.00, 15.00),
     "claude-haiku-4-5": (1.00, 5.00),
+    "claude-haiku-4-5-20251001": (1.00, 5.00),
 }
 
 # Fast mode runs the same model at premium rates (Opus 5 / Opus 4.8 only).
@@ -58,6 +61,11 @@ SONNET_5_INTRO_UNTIL = date(2026, 8, 31)
 
 # Cache multipliers applied to the model's base INPUT rate.
 CACHE_READ_MULT = 0.10   # serving a cached prefix
+# Fable 5.1 bills cache reads at $0.25/MTok (0.025x of its $10 input rate).
+# Mythos 5.1 is left at the default: whether it shares the 0.025x rate is unconfirmed.
+CACHE_READ_MULT_BY_MODEL: dict[str, float] = {
+    "claude-fable-5-1": 0.025,
+}
 CACHE_WRITE_5M_MULT = 1.25
 CACHE_WRITE_1H_MULT = 2.00
 
@@ -109,10 +117,10 @@ def parse_usage(usage: dict) -> dict:
     }
 
 
-def price(u: dict, out: int, rate_in: float, rate_out: float) -> float:
+def price(u: dict, out: int, rate_in: float, rate_out: float, model: str = "") -> float:
     billable_in = (
         u["inp"]
-        + u["read"] * CACHE_READ_MULT
+        + u["read"] * CACHE_READ_MULT_BY_MODEL.get(model, CACHE_READ_MULT)
         + u["w5"] * CACHE_WRITE_5M_MULT
         + u["w1h"] * CACHE_WRITE_1H_MULT
     )
@@ -185,7 +193,7 @@ def collect(root: Path, since: datetime | None, until: datetime | None, include_
                 u = parse_usage(usage)
                 out = usage.get("output_tokens", 0) or 0
                 think = (usage.get("output_tokens_details") or {}).get("thinking_tokens", 0) or 0
-                cost = price(u, out, *r)
+                cost = price(u, out, *r, model=model)
 
                 total.add(cost, u, out, think)
                 by["model"][model].add(cost, u, out, think)
@@ -282,7 +290,8 @@ def main() -> int:
     print(f"Claude Code usage{span} — {nfiles} transcript file(s), {total.turns} assistant turns")
     print(f"\n  Estimated cost:  ${total.cost:,.2f}   (public list rates, not a bill)")
     print(f"  Uncached input:  {fmt(total.inp):>9}")
-    print(f"  Cache reads:     {fmt(total.cache_read):>9}  (billed at {CACHE_READ_MULT:g}x input)")
+    print(f"  Cache reads:     {fmt(total.cache_read):>9}  (billed at {CACHE_READ_MULT:g}x input; "
+          f"{CACHE_READ_MULT_BY_MODEL['claude-fable-5-1']:g}x on claude-fable-5-1)")
     print(f"  Cache writes:    {fmt(total.cache_write):>9}")
     print(f"  Output:          {fmt(total.out):>9}  (incl. {fmt(total.think)} thinking)")
     prefix = total.inp + total.cache_read + total.cache_write
